@@ -1,27 +1,7 @@
 import math
 import tkinter as tk
-from tkinter import messagebox, simpledialog, scrolledtext
-import re
+from tkinter import messagebox, scrolledtext
 from tabulate import tabulate
-
-def extraer_x(funcion):
-    """ 
-    Extrae el valor de x en la función cos(x) o cos(kπ).
-    Acepta `π`, `pi` o valores numéricos directos.
-    """
-    patron_pi = r'cos\(([-]?\d*\.?\d*)\s*\*?\s*(?:π|pi)\)'
-    patron_numero = r'cos\(([-]?\d*\.?\d*)\)'
-
-    funcion = funcion.lower().replace(" ", "")
-    coincidencia_pi = re.search(patron_pi, funcion)
-    coincidencia_num = re.search(patron_numero, funcion)
-
-    if coincidencia_pi:
-        return float(coincidencia_pi.group(1)) * math.pi  # Convertir a radianes
-    elif coincidencia_num:
-        return float(coincidencia_num.group(1))  # Ya está en radianes
-    else:
-        raise ValueError("Formato incorrecto. Ingrese en la forma cos(kπ), cos(kpi) o cos(x)")
 
 def cos_maclaurin(x, tolerancia=0.0000005):
     """Calcula la aproximación de cos(x) con la serie de Maclaurin y los errores."""
@@ -39,8 +19,8 @@ def cos_maclaurin(x, tolerancia=0.0000005):
         errorVerdadero = abs((math.cos(x) - valorAproximado) / math.cos(x)) * 100
         errorAproximado = abs((valorAproximado - valorAproximadoanterior) / valorAproximado) * 100 if n > 0 else "N/A"
         
-        resultados.append((n + 1, valorAproximado, errorVerdadero, errorAproximado))
-        
+        resultados.append((n + 1, round(valorAproximado, 8), errorVerdadero, errorAproximado))
+
         if errorAproximado != "N/A" and errorAproximado < tolerancia:
             break
 
@@ -50,7 +30,8 @@ def cos_maclaurin(x, tolerancia=0.0000005):
     return resultados
 
 def mostrar_resultados(tabla):
-    ventana = tk.Toplevel()
+    """Muestra los resultados en una ventana emergente."""
+    ventana = tk.Toplevel(root)
     ventana.title("Resultados")
     ventana.geometry("600x400")
     
@@ -60,26 +41,36 @@ def mostrar_resultados(tabla):
     texto.pack(expand=True, fill='both')
 
 def calcular():
+    """Obtiene el ángulo desde la interfaz, lo multiplica por π y lo usa en la serie de Maclaurin."""
     try:
-        funcion = simpledialog.askstring("Entrada", "Ingrese la función:")
-        if funcion is None:
+        angulo = entrada_angulo.get().strip()
+        if not angulo:
+            messagebox.showwarning("Aviso", "Ingrese un ángulo válido.")
             return
-        
-        x = extraer_x(funcion)  
+
+        angulo = float(angulo)  # Convertir a número
+        x = angulo * math.pi  # Multiplicar por π para obtener radianes
+
         resultados = cos_maclaurin(x)
         
-        tabla = tabulate(resultados, headers=["Términos", "Resultado", "E_t (%)", "E_a (%)"], tablefmt="grid", floatfmt=".10f")
+        tabla = tabulate(resultados, headers=["Términos", "Resultado", "E_t (%)", "E_a (%)"], 
+                         tablefmt="grid", floatfmt=(".0f", ".8f", ".8f", ".8f"))
+
         print(tabla)
         mostrar_resultados(tabla)
 
-    except ValueError as e:
-        messagebox.showerror("Error", str(e))
+    except ValueError:
+        messagebox.showerror("Error", "Ingrese un número válido para el ángulo.")
 
+# Crear la ventana principal
 root = tk.Tk()
 root.title("Calculadora de Serie de Maclaurin")
-root.geometry("300x100")  # Tamaño reducido para no estorbar
-tk.Button(root, text="Calcular", command=calcular).pack(pady=20)
+root.geometry("300x150")
+
+tk.Label(root, text="Ingrese el ángulo:").pack(pady=5)
+entrada_angulo = tk.Entry(root, width=10)
+entrada_angulo.pack(pady=5)
+
+tk.Button(root, text="Calcular", command=calcular).pack(pady=10)
 
 root.mainloop()
-
-calcular()
