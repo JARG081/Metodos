@@ -1,83 +1,82 @@
-import sympy as sp
-import numpy as np
+import math
+import pandas as pd
 import tkinter as tk
 from tkinter import ttk
 
-def mostrar_resultados(resultados):
+def f(m, g, c, v, t):
+    return (g * m / c) * (1 - math.exp(- (c / m) * t)) - v
+
+def mostrar_resultados(tabla, raiz):
     ventana = tk.Tk()
-    ventana.title("Resultados del Método de Bisección")
+    ventana.title("Resultados - Método de Falsa Posición")
     
-    cols = ("Iteración", "Xl", "Xu", "Xr", "f(Xr)", "Error %")
-    tree = ttk.Treeview(ventana, columns=cols, show='headings')
+    frame = ttk.Frame(ventana, padding="10")
+    frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
     
-    for col in cols:
-        tree.heading(col, text=col)
-        tree.column(col, anchor="center")
+    label = ttk.Label(frame, text=f"Raíz encontrada: {raiz:.6f}", font=("Arial", 12, "bold"))
+    label.grid(row=0, column=0, columnspan=2, pady=5)
     
-    for res in resultados:
-        tree.insert("", "end", values=res)
+    tree = ttk.Treeview(frame, columns=("Iteración", "Xr", "Error (%)"), show='headings')
+    tree.heading("Iteración", text="Iteración")
+    tree.heading("Xr", text="Xr")
+    tree.heading("Error (%)", text="Error (%)")
     
-    tree.pack(expand=True, fill='both')
+    for i in range(len(tabla)):
+        tree.insert("", "end", values=tuple(tabla.iloc[i]))
+    
+    tree.grid(row=1, column=0)
+    
+    scrollbar = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+    tree.configure(yscroll=scrollbar.set)
+    scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
+    
     ventana.mainloop()
 
-def biseccion(func, Xl, Xu, tol=1e-6, max_iter=100, max_tol=0.5):
-    fXl, fXu = func(Xl), func(Xu)
-    
-    if fXl == 0:
-        print(f"La raíz exacta es {Xl}")
-        return Xl
-    if fXu == 0:
-        print(f"La raíz exacta es {Xu}")
-        return Xu
-    
+def falsa_posicion(g, c, v, t, xi, xu, tol=0.1, max_iter=100):
+    xr_ant = None
     iteracion = 0
-    xr_anterior = Xl
-    error_porcentual = float("inf")
-    resultados = []
+    datos = []
     
-    while error_porcentual > tol and error_porcentual > max_tol and iteracion < max_iter:
+    while iteracion < max_iter:
         iteracion += 1
-        Xr = (Xl + Xu) / 2
-        fXr = func(Xr)
+        xr = xu - (f(xu, g, c, v, t) * (xi - xu)) / (f(xi, g, c, v, t) - f(xu, g, c, v, t))
         
-        if iteracion > 1:
-            error_porcentual = abs((Xr - xr_anterior) / Xr) * 100
+        error = abs((xr - xr_ant) / xr) * 100 if xr_ant is not None else None
         
-        resultados.append((iteracion, round(Xl, 4), round(Xu, 4), round(Xr, 4), round(fXr, 4), round(error_porcentual, 4)))
+        datos.append([iteracion, xr, f"{error:.6f}%" if error is not None else "N/A"])
         
-        if abs(fXr) < tol:
-            mostrar_resultados(resultados)
-            return Xr
+        if error is not None and error < tol:
+            break
         
-        if fXl * fXr < 0:
-            Xu = Xr
-            fXu = fXr
+        if f(xi, g, c, v, t) * f(xr, g, c, v, t) < 0:
+            xu = xr
         else:
-            Xl = Xr
-            fXl = fXr
+            xi = xr
         
-        xr_anterior = Xr
+        xr_ant = xr
     
-    mostrar_resultados(resultados)
-    return Xr
+    tabla_resultados = pd.DataFrame(datos, columns=["Iteración", "Xr", "Error (%)"])
+    mostrar_resultados(tabla_resultados, xr)
+    return xr
 
-def pedir_entrada():
-    g, m, t, v = 9.81, 68.1, 10, 40
-    print("Valores base (presiona Enter para dejar valores predeterminados):")
-    g = float(input(f"Gravedad (g) = {g}: ") or g)
-    m = float(input(f"Masa (m) = {m}: ") or m)
-    t = float(input(f"Tiempo (t) = {t}: ") or t)
-    v = float(input(f"Velocidad (v) = {v}: ") or v)
+def main():
+    g = input(f"Ingrese el valor de g (default 9.8): ")
+    g = float(g) if g else 9.8
     
-    Xl = float(input("Ingresa Xl (límite inferior): "))
-    Xu = float(input("Ingresa Xu (límite superior): "))
+    c = input(f"Ingrese el valor de c (default 15): ")
+    c = float(c) if c else 15
     
-    c = sp.symbols('c')
-    funcion = sp.lambdify(c, ((g * m) / c) * (1 - sp.exp(- (c / m) * t)) - v, "numpy")
+    v = input(f"Ingrese el valor de v (default 35): ")
+    v = float(v) if v else 35
     
-    return funcion, Xl, Xu
+    t = input(f"Ingrese el valor de t (default 9): ")
+    t = float(t) if t else 9
+    
+    xi = float(input("Ingrese el límite inferior: "))
+    xu = float(input("Ingrese el límite superior: "))
+    
+    resultado = falsa_posicion(g, c, v, t, xi, xu)
+    print(f"\nLa raíz encontrada para m es: {resultado:.6f}")
 
 if __name__ == "__main__":
-    funcion, Xl, Xu = pedir_entrada()
-    raiz = biseccion(funcion, Xl, Xu)
-    print(f"\nRaíz aproximada: {raiz:.6f}")
+    main()
